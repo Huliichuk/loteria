@@ -28,19 +28,52 @@ export async function POST(req: Request) {
             });
         }
 
-        // Fetch recent history for context
-        const historyRes = await fetch("https://euromillions.api.pedromealha.dev/v1/draws?order=desc&limit=20");
+        // Fetch recent history for context - try API first, then fallback to local
+        let drawHistory: Array<{ date: string; numbers: number[]; stars: number[] }> = [];
 
-        if (!historyRes.ok) {
-            throw new Error("Failed to fetch draw history");
+        try {
+            const historyRes = await fetch("https://euromillions.api.pedromealha.dev/v1/draws?order=desc&limit=20", {
+                next: { revalidate: 3600 },
+            });
+
+            if (historyRes.ok) {
+                const historyData = await historyRes.json();
+                drawHistory = historyData.map((d: any) => ({
+                    date: d.date,
+                    numbers: d.numbers.map((n: string) => parseInt(n, 10)),
+                    stars: d.stars.map((s: string) => parseInt(s, 10)),
+                }));
+            }
+        } catch {
+            console.log("External API failed, trying local draws...");
         }
 
-        const historyData = await historyRes.json();
-        const drawHistory = historyData.map((d: any) => ({
-            date: d.date,
-            numbers: d.numbers.map((n: string) => parseInt(n, 10)),
-            stars: d.stars.map((s: string) => parseInt(s, 10)),
-        }));
+        // Fallback: try local draws
+        if (drawHistory.length === 0) {
+            try {
+                const localRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/store-draw`);
+                if (localRes.ok) {
+                    const localData = await localRes.json();
+                    drawHistory = (localData.draws || []).slice(0, 20).map((d: any) => ({
+                        date: d.date,
+                        numbers: d.numbers,
+                        stars: d.stars,
+                    }));
+                }
+            } catch {
+                console.log("Local draws also unavailable");
+            }
+        }
+
+        // If still no history, use mock
+        if (drawHistory.length === 0) {
+            return NextResponse.json({
+                closest_user_bet: "Unable to fetch draw history",
+                probability_score: 0.5,
+                predictions: [{ numbers: [7, 14, 21, 35, 42], stars: [3, 11], confidence: "0.50" }],
+                why: "Draw history unavailable. Mock prediction generated.",
+            });
+        }
 
         const completion = await openai.chat.completions.create({
             model: "gpt-4",
