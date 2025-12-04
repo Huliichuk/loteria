@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import { generateTopCombinations, rankCombinations } from "@/lib/smartCombinationGenerator";
+import { scoreCombination } from "@/lib/probabilityScoring";
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY || "dummy-key-for-build",
