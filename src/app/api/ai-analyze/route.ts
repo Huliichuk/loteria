@@ -20,7 +20,7 @@ export async function POST(req: Request) {
         }
 
         // Fetch recent history for context
-        const historyRes = await fetch("https://euromillions.api.pedromealha.dev/draws?limit=20");
+        const historyRes = await fetch("https://euromillions.api.pedromealha.dev/v1/draws?order=desc&limit=20");
         const historyData = await historyRes.json();
         const drawHistory = historyData.map((d: any) => ({
             date: d.date,
