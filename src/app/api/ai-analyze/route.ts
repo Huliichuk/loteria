@@ -176,14 +176,25 @@ Return this exact JSON structure:
 
         const result = JSON.parse(jsonString);
 
+        // Enhance predictions with probability scores
+        const enhancedPredictions = result.predictions?.map((pred: any) => {
+            const score = scoreCombination(pred.numbers, pred.stars, drawHistory);
+            return {
+                ...pred,
+                probabilityScore: score.probabilityScore,
+                winChance: score.winChance,
+                breakdown: score.breakdown,
+            };
+        }) || [];
+
         // Transform for backward compatibility
         return NextResponse.json({
             closest_user_bet: result.closest_user_bet,
             probability_score: result.probability_score,
-            prediction_of_day: result.predictions?.[0]
-                ? [...result.predictions[0].numbers, ...result.predictions[0].stars]
+            prediction_of_day: enhancedPredictions[0]
+                ? [...enhancedPredictions[0].numbers, ...enhancedPredictions[0].stars]
                 : [],
-            predictions: result.predictions,
+            predictions: enhancedPredictions,
             hot_numbers: result.hot_numbers,
             cold_numbers: result.cold_numbers,
             why: result.why,
