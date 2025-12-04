@@ -17,6 +17,14 @@ interface Prediction {
     numbers: number[];
     stars: number[];
     confidence: string;
+    probabilityScore?: number;
+    winChance?: string;
+    breakdown?: {
+        frequencyScore: number;
+        hotColdScore: number;
+        patternScore: number;
+        overdueScore: number;
+    };
 }
 
 interface AnalysisResult {
@@ -191,40 +199,121 @@ export default function AIAnalysisSection({ userBets }: AIAnalysisProps) {
                         <div className="space-y-3">
                             {analysis.predictions && analysis.predictions.length > 0 ? (
                                 analysis.predictions.map((pred, i) => (
-                                    <div key={i} className="flex flex-wrap items-center gap-3 p-3 bg-white/5 rounded-lg">
-                                        <span className="text-xs font-medium text-gray-500 w-6">#{i + 1}</span>
-
-                                        {/* Numbers */}
-                                        <div className="flex gap-1.5">
-                                            {pred.numbers.map((n, idx) => (
-                                                <span
-                                                    key={idx}
-                                                    className="w-9 h-9 rounded-lg bg-purple-600/50 border border-purple-500/30
-                                     flex items-center justify-center font-bold text-white text-sm"
-                                                >
-                                                    {n}
-                                                </span>
-                                            ))}
+                                    <div key={i} className="p-4 bg-white/5 rounded-lg border border-white/10 hover:border-purple-500/30 transition-colors">
+                                        {/* Header with rank and win chance */}
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-bold text-gray-500">#{i + 1}</span>
+                                                {pred.probabilityScore && (
+                                                    <div className="px-2 py-1 bg-purple-500/20 rounded-md">
+                                                        <span className="text-xs font-bold text-purple-300">
+                                                            Score: {pred.probabilityScore.toFixed(1)}/100
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {pred.winChance && (
+                                                <div className="px-3 py-1 bg-green-500/20 rounded-md">
+                                                    <span className="text-xs font-bold text-green-300">
+                                                        🎯 {pred.winChance}
+                                                    </span>
+                                                </div>
+                                            )}
                                         </div>
 
-                                        <div className="w-px h-6 bg-white/10" />
+                                        {/* Numbers and Stars */}
+                                        <div className="flex flex-wrap items-center gap-3 mb-3">
+                                            {/* Numbers */}
+                                            <div className="flex gap-1.5">
+                                                {pred.numbers.map((n, idx) => (
+                                                    <span
+                                                        key={idx}
+                                                        className="w-9 h-9 rounded-lg bg-purple-600/50 border border-purple-500/30
+                                         flex items-center justify-center font-bold text-white text-sm"
+                                                    >
+                                                        {n}
+                                                    </span>
+                                                ))}
+                                            </div>
 
-                                        {/* Stars */}
-                                        <div className="flex gap-1.5">
-                                            {pred.stars.map((s, idx) => (
-                                                <span
-                                                    key={idx}
-                                                    className="w-9 h-9 rounded-lg bg-yellow-500/50 border border-yellow-500/30
-                                     flex items-center justify-center font-bold text-white text-sm"
-                                                >
-                                                    {s}
-                                                </span>
-                                            ))}
+                                            <div className="w-px h-6 bg-white/10" />
+
+                                            {/* Stars */}
+                                            <div className="flex gap-1.5">
+                                                {pred.stars.map((s, idx) => (
+                                                    <span
+                                                        key={idx}
+                                                        className="w-9 h-9 rounded-lg bg-yellow-500/50 border border-yellow-500/30
+                                         flex items-center justify-center font-bold text-white text-sm"
+                                                    >
+                                                        {s}
+                                                    </span>
+                                                ))}
+                                            </div>
                                         </div>
 
-                                        <span className="ml-auto text-xs font-medium text-gray-400">
-                                            {(parseFloat(pred.confidence) * 100).toFixed(0)}%
-                                        </span>
+                                        {/* Score Breakdown */}
+                                        {pred.breakdown && (
+                                            <div className="space-y-2 pt-3 border-t border-white/10">
+                                                <div className="text-xs font-semibold text-gray-400 mb-2">📊 Score Breakdown:</div>
+
+                                                {/* Frequency Score */}
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-gray-400 w-20">Frequency:</span>
+                                                    <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full"
+                                                            style={{ width: `${(pred.breakdown.frequencyScore / 40) * 100}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="text-xs font-bold text-blue-300 w-12 text-right">
+                                                        {pred.breakdown.frequencyScore.toFixed(1)}/40
+                                                    </span>
+                                                </div>
+
+                                                {/* Hot/Cold Score */}
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-gray-400 w-20">Hot/Cold:</span>
+                                                    <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full bg-gradient-to-r from-red-500 to-orange-400 rounded-full"
+                                                            style={{ width: `${(pred.breakdown.hotColdScore / 30) * 100}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="text-xs font-bold text-orange-300 w-12 text-right">
+                                                        {pred.breakdown.hotColdScore.toFixed(1)}/30
+                                                    </span>
+                                                </div>
+
+                                                {/* Pattern Score */}
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-gray-400 w-20">Patterns:</span>
+                                                    <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full bg-gradient-to-r from-purple-500 to-pink-400 rounded-full"
+                                                            style={{ width: `${(pred.breakdown.patternScore / 20) * 100}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="text-xs font-bold text-purple-300 w-12 text-right">
+                                                        {pred.breakdown.patternScore.toFixed(1)}/20
+                                                    </span>
+                                                </div>
+
+                                                {/* Overdue Score */}
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-gray-400 w-20">Overdue:</span>
+                                                    <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full"
+                                                            style={{ width: `${(pred.breakdown.overdueScore / 10) * 100}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="text-xs font-bold text-green-300 w-12 text-right">
+                                                        {pred.breakdown.overdueScore.toFixed(1)}/10
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 ))
                             ) : analysis.prediction_of_day && (
