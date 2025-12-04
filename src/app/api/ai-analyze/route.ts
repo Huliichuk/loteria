@@ -15,18 +15,60 @@ export async function POST(req: Request) {
         const numCombinations = Math.min(10, Math.max(1, parseInt(combinationCount) || 1));
 
         if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === "dummy-key-for-build") {
-            // Return mock data if no API key is present
-            const mockPredictions = Array.from({ length: numCombinations }, (_, i) => ({
-                numbers: [5 + i, 12 + i, 23 + i, 34 + i, 45].map(n => Math.min(50, n)),
-                stars: [2 + i, 8].map(s => Math.min(12, s)),
-                confidence: (0.75 - i * 0.05).toFixed(2),
+            // Fetch draw history for probability calculations
+            let drawHistory: Array<{ date: string; numbers: number[]; stars: number[] }> = [];
+
+            try {
+                const historyRes = await fetch("https://euromillions.api.pedromealha.dev/v1/draws?order=desc&limit=50", {
+                    next: { revalidate: 3600 },
+                });
+
+                if (historyRes.ok) {
+                    const historyData = await historyRes.json();
+                    drawHistory = historyData.map((d: any) => ({
+                        date: d.date,
+                        numbers: d.numbers.map((n: string) => parseInt(n, 10)),
+                        stars: d.stars.map((s: string) => parseInt(s, 10)),
+                    }));
+                }
+            } catch {
+                console.log("Failed to fetch draw history for probability calculations");
+            }
+
+            // Generate smart combinations using probability system
+            const smartCombinations = drawHistory.length > 0
+                ? generateTopCombinations(drawHistory, numCombinations)
+                : Array.from({ length: numCombinations }, (_, i) => ({
+                    numbers: [5 + i, 12 + i, 23 + i, 34 + i, 45].map(n => Math.min(50, n)),
+                    stars: [2 + i, 8].map(s => Math.min(12, s)),
+                    probabilityScore: 75 - i * 5,
+                    winChance: `${(12 - i * 1).toFixed(2)}%`,
+                    breakdown: {
+                        frequencyScore: 30 - i,
+                        hotColdScore: 25 - i,
+                        patternScore: 15 - i,
+                        overdueScore: 5,
+                    },
+                    rank: i + 1,
+                    confidence: (0.85 - i * 0.05).toFixed(2),
+                }));
+
+            const mockPredictions = smartCombinations.map(combo => ({
+                numbers: combo.numbers,
+                stars: combo.stars,
+                confidence: combo.confidence,
+                probabilityScore: combo.probabilityScore,
+                winChance: combo.winChance,
+                breakdown: combo.breakdown,
             }));
 
             return NextResponse.json({
                 closest_user_bet: "Simulation: Bet #1 (2 numbers match)",
                 probability_score: 0.75,
                 predictions: mockPredictions,
-                why: "Simulation mode: OpenAI API Key is missing. Please add OPENAI_API_KEY to your .env.local file to get real AI predictions.",
+                why: drawHistory.length > 0
+                    ? `Probability-based predictions generated using ${drawHistory.length} historical draws. Combinations ranked by statistical analysis (frequency: 40%, hot/cold: 30%, patterns: 20%, overdue: 10%). Note: OpenAI API Key is missing for AI enhancement.`
+                    : "Simulation mode: OpenAI API Key is missing. Please add OPENAI_API_KEY to your .env.local file to get real AI predictions.",
             });
         }
 
